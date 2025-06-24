@@ -70,6 +70,10 @@ type Shape struct {
 
 	// Reference to world
 	world *World
+
+	// Cached images to prevent color bleeding
+	cachedColorImage *ebiten.Image
+	lastBackground   color.Color
 }
 
 // NewShape creates a new shape
@@ -235,6 +239,24 @@ func (s *Shape) SetScale(scale float64) {
 	s.Body.SetTransform(box2d.MakeB2Vec2(s.X, s.Y), s.RotationAngle*Deg)
 }
 
+// SetBackground updates the background color and invalidates cached images
+func (s *Shape) SetBackground(bg color.Color) {
+	s.Background = bg
+	// Invalidate cached image to force recreation with new color
+	s.cachedColorImage = nil
+}
+
+// getColorImage returns a cached color image or creates a new one
+func (s *Shape) getColorImage(width, height int) *ebiten.Image {
+	// Check if we need to create/recreate the cached image
+	if s.cachedColorImage == nil || s.lastBackground != s.Background {
+		s.cachedColorImage = ebiten.NewImage(width, height)
+		s.cachedColorImage.Fill(s.Background)
+		s.lastBackground = s.Background
+	}
+	return s.cachedColorImage
+}
+
 // Draw renders the shape
 func (s *Shape) Draw(screen *ebiten.Image) {
 	s.UpdatePhysicsInfo()
@@ -266,9 +288,8 @@ func (s *Shape) drawRectangle(screen *ebiten.Image) {
 
 	switch s.Pattern {
 	case PatternColor:
-		// Create a colored rectangle
-		img := ebiten.NewImage(int(s.Width), int(s.Height))
-		img.Fill(s.Background)
+		// Use cached color image to prevent color bleeding
+		img := s.getColorImage(int(s.Width), int(s.Height))
 		
 		// Apply transformations for colored rectangle
 		s.applyTransformations(op, s.Width, s.Height)
@@ -299,9 +320,8 @@ func (s *Shape) drawSquare(screen *ebiten.Image) {
 
 	switch s.Pattern {
 	case PatternColor:
-		// Create a colored square
-		img := ebiten.NewImage(int(size), int(size))
-		img.Fill(s.Background)
+		// Use cached color image to prevent color bleeding
+		img := s.getColorImage(int(size), int(size))
 		
 		s.applyTransformations(op, size, size)
 		screen.DrawImage(img, op)
@@ -323,7 +343,7 @@ func (s *Shape) drawCircle(screen *ebiten.Image) {
 	
 	switch s.Pattern {
 	case PatternColor:
-		// Create a circle image
+		// Create a fresh circle image each time to prevent color bleeding
 		size := int(s.Radius * 2)
 		img := ebiten.NewImage(size, size)
 
@@ -356,8 +376,7 @@ func (s *Shape) drawCircle(screen *ebiten.Image) {
 func (s *Shape) drawLine(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	
-	// Line drawing implementation would go here
-	// This is a simplified version
+	// Create a fresh line image each time
 	img := ebiten.NewImage(int(s.Width), int(s.Height))
 	img.Fill(s.Background)
 	
