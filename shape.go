@@ -243,69 +243,54 @@ func (s *Shape) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	op := &ebiten.DrawImageOptions{}
-
-	// Step 1: Move origin to the center of the shape (relative to image)
-	op.GeoM.Translate(-s.Width/2, -s.Height/2)
-
-	// Step 2: Flip if needed
-	scaleX, scaleY := 1.0, 1.0
-	if s.Image != nil {
-		imgWidth, imgHeight := s.Image.Size()
-
-		scaleX = float64(imgWidth) / s.Width * 0.1
-		scaleY = float64(imgHeight) / s.Height * 0.2
-	}
-
-	if s.Flip.X {
-		scaleX *= -1
-	}
-	if s.Flip.Y {
-		scaleY *= -1
-	}
-
-	op.GeoM.Scale(s.Scale, s.Scale)
-	op.GeoM.Scale(scaleX, scaleY)
-
-	op.GeoM.Rotate(s.RotationAngle)
-
-	op.GeoM.Translate(s.X+s.Width/2, s.Y+s.Height/2)
-
 	if s.Border != nil && s.Border.Width > 0 {
 		s.drawBorder(screen)
 	}
 
 	switch s.Type {
 	case ShapeRectangle:
-		s.drawRectangle(screen, op)
+		s.drawRectangle(screen)
 	case ShapeSquare:
-		s.drawSquare(screen, op)
+		s.drawSquare(screen)
 	case ShapeCircle:
-		s.drawCircle(screen, op)
+		s.drawCircle(screen)
 	case ShapeDot:
-		s.drawDot(screen, op)
+		s.drawDot(screen)
 	case ShapeLine:
-		s.drawLine(screen, op)
+		s.drawLine(screen)
 	}
-
 }
 
-func (s *Shape) drawRectangle(screen *ebiten.Image, op *ebiten.DrawImageOptions) {
+func (s *Shape) drawRectangle(screen *ebiten.Image) {
+	op := &ebiten.DrawImageOptions{}
+
 	switch s.Pattern {
 	case PatternColor:
 		// Create a colored rectangle
 		img := ebiten.NewImage(int(s.Width), int(s.Height))
 		img.Fill(s.Background)
+		
+		// Apply transformations for colored rectangle
+		s.applyTransformations(op, s.Width, s.Height)
 		screen.DrawImage(img, op)
+		
 	case PatternImage:
-		// make a resized image from s.Image
 		if s.Image != nil {
+			// Get original image dimensions
+			imgBounds := s.Image.Bounds()
+			imgWidth := float64(imgBounds.Dx())
+			imgHeight := float64(imgBounds.Dy())
+			
+			// Apply transformations for image
+			s.applyTransformations(op, imgWidth, imgHeight)
 			screen.DrawImage(s.Image, op)
 		}
 	}
 }
 
-func (s *Shape) drawSquare(screen *ebiten.Image, op *ebiten.DrawImageOptions) {
+func (s *Shape) drawSquare(screen *ebiten.Image) {
+	op := &ebiten.DrawImageOptions{}
+	
 	// For squares, ensure width and height are equal
 	size := s.Width
 	if s.Height > s.Width {
@@ -317,43 +302,110 @@ func (s *Shape) drawSquare(screen *ebiten.Image, op *ebiten.DrawImageOptions) {
 		// Create a colored square
 		img := ebiten.NewImage(int(size), int(size))
 		img.Fill(s.Background)
+		
+		s.applyTransformations(op, size, size)
 		screen.DrawImage(img, op)
+		
 	case PatternImage:
 		if s.Image != nil {
+			imgBounds := s.Image.Bounds()
+			imgWidth := float64(imgBounds.Dx())
+			imgHeight := float64(imgBounds.Dy())
+			
+			s.applyTransformations(op, imgWidth, imgHeight)
 			screen.DrawImage(s.Image, op)
 		}
 	}
 }
 
-func (s *Shape) drawCircle(screen *ebiten.Image, op *ebiten.DrawImageOptions) {
-	// Create a circle image
-	size := int(s.Radius * 2)
-	img := ebiten.NewImage(size, size)
+func (s *Shape) drawCircle(screen *ebiten.Image) {
+	op := &ebiten.DrawImageOptions{}
+	
+	switch s.Pattern {
+	case PatternColor:
+		// Create a circle image
+		size := int(s.Radius * 2)
+		img := ebiten.NewImage(size, size)
 
-	// Simple circle drawing (can be optimized)
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			dx := float64(x) - s.Radius
-			dy := float64(y) - s.Radius
-			if dx*dx+dy*dy <= s.Radius*s.Radius {
-				img.Set(x, y, s.Background)
+		// Simple circle drawing (can be optimized)
+		for y := 0; y < size; y++ {
+			for x := 0; x < size; x++ {
+				dx := float64(x) - s.Radius
+				dy := float64(y) - s.Radius
+				if dx*dx+dy*dy <= s.Radius*s.Radius {
+					img.Set(x, y, s.Background)
+				}
 			}
 		}
+		
+		s.applyTransformations(op, s.Radius*2, s.Radius*2)
+		screen.DrawImage(img, op)
+		
+	case PatternImage:
+		if s.Image != nil {
+			imgBounds := s.Image.Bounds()
+			imgWidth := float64(imgBounds.Dx())
+			imgHeight := float64(imgBounds.Dy())
+			
+			s.applyTransformations(op, imgWidth, imgHeight)
+			screen.DrawImage(s.Image, op)
+		}
 	}
-
-	screen.DrawImage(img, op)
 }
 
-func (s *Shape) drawLine(screen *ebiten.Image, op *ebiten.DrawImageOptions) {
+func (s *Shape) drawLine(screen *ebiten.Image) {
+	op := &ebiten.DrawImageOptions{}
+	
 	// Line drawing implementation would go here
 	// This is a simplified version
 	img := ebiten.NewImage(int(s.Width), int(s.Height))
 	img.Fill(s.Background)
+	
+	s.applyTransformations(op, s.Width, s.Height)
 	screen.DrawImage(img, op)
 }
 
-func (s *Shape) drawDot(screen *ebiten.Image, op *ebiten.DrawImageOptions) {
-	s.drawCircle(screen, op)
+func (s *Shape) drawDot(screen *ebiten.Image) {
+	s.drawCircle(screen)
+}
+
+// applyTransformations applies all necessary transformations to the DrawImageOptions
+func (s *Shape) applyTransformations(op *ebiten.DrawImageOptions, originalWidth, originalHeight float64) {
+	// Step 1: Move origin to center of the original image
+	op.GeoM.Translate(-originalWidth/2, -originalHeight/2)
+	
+	// Step 2: Apply flipping
+	scaleX, scaleY := 1.0, 1.0
+	if s.Flip.X {
+		scaleX = -1.0
+	}
+	if s.Flip.Y {
+		scaleY = -1.0
+	}
+	
+	// Step 3: Scale to match shape dimensions
+	if s.Pattern == PatternImage && s.Image != nil {
+		// Scale image to fit shape dimensions
+		scaleX *= s.Width / originalWidth
+		scaleY *= s.Height / originalHeight
+	}
+	
+	// Step 4: Apply shape scale
+	scaleX *= s.Scale
+	scaleY *= s.Scale
+	
+	op.GeoM.Scale(scaleX, scaleY)
+	
+	// Step 5: Apply rotation
+	op.GeoM.Rotate(s.RotationAngle)
+	
+	// Step 6: Translate to final position (center of shape)
+	op.GeoM.Translate(s.X+s.Width/2, s.Y+s.Height/2)
+	
+	// Step 7: Apply opacity
+	if s.Opacity < 1.0 {
+		op.ColorM.Scale(1, 1, 1, s.Opacity)
+	}
 }
 
 func (s *Shape) drawBorder(screen *ebiten.Image) {
@@ -589,4 +641,18 @@ func (s *Shape) Get(property string) interface{} {
 
 func (s *Shape) Set(property string, value interface{}) {
 	// Property setter implementation
+}
+
+// Movement methods
+func (s *Shape) Move(direction string) {
+	switch direction {
+	case "up":
+		s.SetYVelocity(-s.Speed)
+	case "down":
+		s.SetYVelocity(s.Speed)
+	case "left":
+		s.SetXVelocity(-s.Speed)
+	case "right":
+		s.SetXVelocity(s.Speed)
+	}
 }
