@@ -742,7 +742,7 @@ func (w *World) createPhysicsBody(object *Shape) {
 		bodyDef.GravityScale = 0
 	}
 
-	bodyDef.FixedRotation = false
+	bodyDef.FixedRotation = object.RotationLock
 
 	centerX := object.X + object.Width/2
 	centerY := object.Y + object.Height/2
