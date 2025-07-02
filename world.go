@@ -743,6 +743,7 @@ func (w *World) createPhysicsBody(object *Shape) {
 	}
 
 	bodyDef.FixedRotation = object.RotationLock
+	density := object.Density
 
 	centerX := object.X + object.Width/2
 	centerY := object.Y + object.Height/2
@@ -768,8 +769,6 @@ func (w *World) createPhysicsBody(object *Shape) {
 		boxShape.SetAsBox(PixelsToMeters(object.Width/2), PixelsToMeters(object.Height/2))
 		shape = &boxShape
 	}
-
-	density := object.Density
 
 	fixture := body.CreateFixture(shape, density)
 
