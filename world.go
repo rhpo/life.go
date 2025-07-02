@@ -769,10 +769,7 @@ func (w *World) createPhysicsBody(object *Shape) {
 		shape = &boxShape
 	}
 
-	density := 0.0
-	if !object.Physics {
-		density = 0.0
-	}
+	density := object.Density
 
 	fixture := body.CreateFixture(shape, density)
 
